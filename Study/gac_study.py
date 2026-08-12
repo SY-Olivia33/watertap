@@ -187,7 +187,13 @@ class GACData(InitializationMixin, UnitModelBlockData):
     **default** - True.""",
         ),
     )
-    # 
+    # 근데 등온 조건은 GAC unit model의 기본 가정 아닌가?? 왜 bool로 받는 것?
+    # -> default=True라서 "기본 가정"처럼 보이는 것뿐, 강제된 건 아님
+    # build()에서 True면 add_isothermal_assumption()으로 T_out = T_in 식만 추가
+    # False로 바꾸면 _validate_config()에서 energy_balance_type != none 요구함
+    #   (등온 아니면 실제 에너지수지 식을 세워서 T를 풀어야 하니까)
+    # 즉 대부분의 GAC(상온 액상 처리)는 등온 가정으로 충분해서 default=True,
+    # 온도 영향이 중요한 케이스를 위해 옵션으로 열어둔 것
 
     CONFIG.declare(
         "energy_balance_type",
@@ -207,6 +213,15 @@ class GACData(InitializationMixin, UnitModelBlockData):
     **EnergyBalanceType.energyPhase** - energy balances for each phase.}""",
         ),
     )
+    # 에너지수지(energy balance) 식 세우는 방식에 대한 옵션
+    # default는 property package가 정한 기본값 따라가는 것 (=GAC에서는 MCAS)
+    # domain은 EnergyBalanceType이라는 Enum (idaes.core에서 import)
+    # none ; 식을 만들지 않는다 (다른 데서 따로 처리하는 경우)
+    # enthalpyPhase ; 상마다 따로 엔탈피 balance
+    # enthalpyTotal ; 상 전부 합쳐서 엔탈피 H 기준 balance 식 하나
+    # energyTotal ; 상 전부 합쳐서 내부에너지 U 기준 balance 식 하나
+    # energyPhase ; 상마다 따로 내부에너지 balance
+
     CONFIG.declare(
         "momentum_balance_type",
         ConfigValue(
