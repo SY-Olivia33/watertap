@@ -10,7 +10,7 @@ min_N_St/throughput을 직접 계산해줌). 나머지 값은 test_gac.py의
 build_hand_surrogate()와 동일한 Hand, 1984 DCE 예제 값 그대로 사용.
 """
 
-from pyomo.environ import ConcreteModel, TransformationFactory
+from pyomo.environ import ConcreteModel, TransformationFactory, value
 from pyomo.network import Arc
 import idaes.core.util.scaling as iscale
 from idaes.core import FlowsheetBlock
@@ -57,7 +57,7 @@ def main():
     m.fs.feed.properties[0].flow_mol_phase_comp["Liq", "DCE"].fix(0.0002344381568310428)
 
     # --- 흡착 등온선 (Freundlich) ---
-    m.fs.gac.freund_k.fix(37.9e-6 * (1e6**0.8316))
+    m.fs.gac.freund_k.fix(3.7)
     m.fs.gac.freund_ninv.fix(0.8316)
 
     # --- GAC 입자 물성 ---
@@ -105,6 +105,10 @@ def main():
 
     # --- 결과 확인 ---
     m.fs.gac.report()
+
+    # mass_adsorbed는 report()의 var_dict에 등록이 누락되어 있어서 직접 출력
+    # (계산 자체는 eq_mass_adsorbed로 이미 solve 시점에 끝나있음)
+    print("total mass adsorbed [kg]:", value(m.fs.gac.mass_adsorbed))
 
     return m, results
 

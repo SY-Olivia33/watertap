@@ -7,7 +7,7 @@ GACZO(zero-order)와 달리 DB에서 값을 자동으로 불러오지 않고,
 값은 test_gac.py의 build_hand() (Hand, 1984 DCE 제거 예제)를 그대로 사용.
 """
 
-from pyomo.environ import ConcreteModel
+from pyomo.environ import ConcreteModel, value
 import idaes.core.util.scaling as iscale
 from idaes.core import FlowsheetBlock
 from idaes.core.util.model_statistics import degrees_of_freedom
@@ -37,7 +37,7 @@ def main():
     )
 
     # 구조(Var/Constraint 트리, bounds, fixed 여부)는 fix 하기 전에도 바로 볼 수 있음
-    m.fs.unit.pprint()
+
 
     # --- 여기서부터 입력값 세팅 ---
 
@@ -97,6 +97,10 @@ def main():
 
     # 결과 확인
     m.fs.unit.report()
+    print("total mass adsorbed [kg]:", value(m.fs.unit.mass_adsorbed))
+    # mass_adsorbed는 report()의 var_dict에 등록이 누락되어 있어서 직접 출력
+    # (계산 자체는 eq_mass_adsorbed로 이미 solve 시점에 끝나있음)
+    m.fs.unit.pprint()
 
 
 if __name__ == "__main__":
