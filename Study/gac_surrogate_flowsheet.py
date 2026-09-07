@@ -74,7 +74,7 @@ def main():
 
     # --- 물질전달 파라미터 (film_transfer/surface_diffusion 둘 다 "fixed") ---
     m.fs.gac.kf.fix(3.29e-5)
-    m.fs.gac.ds.fix(1.77e-13)
+    m.fs.gac.ds.fix(3.54e-13)
     # a0, a1, b0~b4는 surrogate 모드라 애초에 Var로 생성되지 않음 -> fix 대상 아님
 
     # --- 스케일링 ---
