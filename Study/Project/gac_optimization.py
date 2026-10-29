@@ -261,12 +261,12 @@ def add_costing(m, cost_contactor_type = "pressure"):
 
 def print_results(m, res):
     print(f"termination: {res.solver.termination_condition}")
-    print(f"EBCT: {pyo.value(m.fs.gac.ebct).2f} [s]")
-    print(f"Bed Length: {pyo.value(m.fs.gac.bed_length).2f} [m]")
-    print(f"Loading Rate: {pyo.value(m.fs.gac.velocity_sup)*3600.2f} [m/h]")
-    print(f"Bed Diameter/Area/Volume: {pyo.value(m.fs.gac.bed_diameter).2f} [m] / {pyo.value(m.fs.gac.bed_area).2f} [m2] / {pyo.value(m.fs.gac.bed_volume).2f} [m3]")
-    print(f"GAC Mass filled in bed: {pyo.value(m.fs.gac.bed_mass_gac).2f} [kg]")
-    print(f"EBCT Minimal: {pyo.value(m.fs.gac.min_ebct).2f} [s]")
+    print(f"EBCT: {pyo.value(m.fs.gac.ebct):.2f} [s]")
+    print(f"Bed Length: {pyo.value(m.fs.gac.bed_length):.2f} [m]")
+    print(f"Loading Rate: {pyo.value(m.fs.gac.velocity_sup)*3600:.2f} [m/h]")
+    print(f"Bed Diameter/Area/Volume: {pyo.value(m.fs.gac.bed_diameter):.2f} [m] / {pyo.value(m.fs.gac.bed_area).2f} [m2] / {pyo.value(m.fs.gac.bed_volume).2f} [m3]")
+    print(f"GAC Mass filled in bed: {pyo.value(m.fs.gac.bed_mass_gac):.2f} [kg]")
+    print(f"EBCT Minimal: {pyo.value(m.fs.gac.min_ebct):.2f} [s]")
 
 
 
