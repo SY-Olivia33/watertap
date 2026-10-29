@@ -264,10 +264,15 @@ def print_results(m, res):
     print(f"EBCT: {pyo.value(m.fs.gac.ebct):.2f} [s]")
     print(f"Bed Length: {pyo.value(m.fs.gac.bed_length):.2f} [m]")
     print(f"Loading Rate: {pyo.value(m.fs.gac.velocity_sup)*3600:.2f} [m/h]")
-    print(f"Bed Diameter/Area/Volume: {pyo.value(m.fs.gac.bed_diameter):.2f} [m] / {pyo.value(m.fs.gac.bed_area).2f} [m2] / {pyo.value(m.fs.gac.bed_volume).2f} [m3]")
+    print(f"Bed Diameter/Area/Volume: {pyo.value(m.fs.gac.bed_diameter):.2f} [m] / {pyo.value(m.fs.gac.bed_area):.2f} [m2] / {pyo.value(m.fs.gac.bed_volume):.2f} [m3]")
     print(f"GAC Mass filled in bed: {pyo.value(m.fs.gac.bed_mass_gac):.2f} [kg]")
     print(f"EBCT Minimal: {pyo.value(m.fs.gac.min_ebct):.2f} [s]")
-
+    ## contactor number도 프린트해줘야 하는데 이거는 contactor type 따라 달라져가지고 어케할지 생각좀...
+    ## 여기서 if문을 넣을지 아니면 따로 변수로 꺼내서 넘겨받고 한줄로만 할지??
+    ## CAPEX, OPEX. LCOW. 얼마나 나왔는지
+    ## regen type도 어떤 걸로 했는지 나중에 추가해줘야 함
+    ## 아니 이거 하나하나 다 치기 넘 귀찮은데 report() 쓰면 되지 않나?? 시픔 흠...
+    ## report()에서 안 나오는 거 -> mass adsorbed 이거 안 나와서 따로 프린트해주는 게 좋을지도
 
 
 
