@@ -20,6 +20,8 @@ from watertap.property_models.multicomp_aq_sol_prop_pack import MCASParameterBlo
 from watertap.unit_models.gac import GAC, CPHSDMCalculationMethod
 from watertap.costing import WaterTAPCosting
 from watertap.costing.unit_models.gac import ContactorType
+from pyomo.util.check_units import assert_units_consistent
+from watertap.core.util.initialization import assert_degrees_of_freedom
 
 
 def main():
@@ -79,8 +81,8 @@ def build(
                 diffus_calculation = diffusivity_calculation,
                 diffusivity_data = {("Liq", solute): data["diffus"]},
             )
-        else:  ## calculate diffusivity data using molar volume, with HayduckLaudie, so data["mv"] needed
-            ## HayduckLaudie is for nonelectrolyte molecules. PFAS는 음이온으로 존재 -> 문헌값 사용하는 것이 좋음
+        else:  ## calculate diffusivity data using molar volume, with HaydukLaudie, so data["mv"] needed
+            ## HaydukLaudie is for nonelectrolyte molecules. PFAS는 음이온으로 존재 -> 문헌값 사용하는 것이 좋음
             m.fs.properties = MCASParameterBlock(
                 material_flow_basis = material_flow_basis,
                 ignore_neutral_charge = True,
@@ -185,19 +187,87 @@ def build(
     return m
 
 
-def initialize():
+def initialize(m, solver=None):
+    if solver is None:
+        solver = get_solver()
 
-def optimize():
+    ## check model ; units, DOF
+    assert_units_consistent(m)
+    assert_degrees_of_freedom(m, 0)
+
+    ## initialize
+    m.fs.feed.initialize()
+    propagate_state(m.fs.s01)
+    m.fs.gac.initialize()
+    propagate_state(m.fs.s02)
+    propagate_state(m.fs.s03)
+    m.fs.product.initialize()
+    m.fs.adsorbed_removed.initialize()
+
+    ## costing initialize
+    m.fs.gac.costing.initialize()
+    m.fs.costing.initialize()
+    ## gac.costing을 먼저 initialize 해줘야 costing이 gac.costing의 값을 받아서 제대로 된 초기값 계산 가능
+
+    ## solve
+    res = solver.solve(m)
+    pyo.assert_optimal_termination(res)
+
+    return res
+
+
+def optimize(m, solver=None):
+    ## 지금은 DOF=0인 걸 한 번 더 푸는 것에 불과해서 objective 함수도 없고 걍 별 의미 없음. 나중에 살 붙이기
+
+    if solver is None:
+        solver = get_solver()
+
+    ## check model ; units
+    assert_units_consistent(m)
+    print(f"Optimizing with {(degrees_of_freedom(m))} DOF")
+
+    ## solve
+    res = solver.solve(m)
+    pyo.assert_optimal_termination(res)
+
+    return res
+
 
 def add_costing(m, cost_contactor_type = "pressure"):
-    m.fs.costing = WaterTAPCosting
-    m.fs.costing.base_currency = pyo.units.USD_2021
+    m.fs.costing = WaterTAPCosting()
+    m.fs.costing.base_currency = pyo.units.USD_2021  ## 이거 2026으로 해야 하나??
     m.fs.gac.costing = UnitModelCostingBlock(
         flowsheet_costing_block=m.fs.costing,
-        costing_method_arguments={"cost_contactor_type": cost_contactor_type},
+        costing_method_arguments={"contactor_type": cost_contactor_type},
+        ## costing_method=어쩌구... regen 추가할 때 cost_gac를 대체할 새 함수를 넣기
     )
+    ## add flowsheet level blocks
+    m.fs.costing.cost_process()  ## cost_process method 호출
+    treated_flow = m.fs.product.properties[0].flow_vol  ## product의 flow_vol
+    ## m.fs.costing.add_annual_water_production(treated_flow)  ## treated_flow 이용해 annual water production 계산 근데 그냥 빼도 되지 않나? 그냥 뺄게~
+    m.fs.costing.add_LCOW(treated_flow)  ## treated_flow 이용해 LCOW 계산
+    ## Specific Energy Consumption 계산하는 행은 그냥 뺐음
 
-def print_results():
+    ## costing specifications
+    if cost_contactor_type == ContactorType.pressure:
+        m.fs.costing.gac_pressure.regen_frac.fix(0.7)
+        m.fs.costing.gac_pressure.num_contactors_op.fix(1)
+        m.fs.costing.gac_pressure.num_contactors_redundant.fix(1)
+    else:
+        m.fs.costing.gac_gravity.regen_frac.fix(0.7)
+        m.fs.costing.gac_gravity.num_contactors_op.fix(1)
+        m.fs.costing.gac_gravity.num_contactors_redundant.fix(1)
+
+
+def print_results(m, res):
+    print(f"termination: {res.solver.termination_condition}")
+    print(f"EBCT: {pyo.value(m.fs.gac.ebct).2f} [s]")
+    print(f"Bed Length: {pyo.value(m.fs.gac.bed_length).2f} [m]")
+    print(f"Loading Rate: {pyo.value(m.fs.gac.velocity_sup)*3600.2f} [m/h]")
+    print(f"Bed Diameter/Area/Volume: {pyo.value(m.fs.gac.bed_diameter).2f} [m] / {pyo.value(m.fs.gac.bed_area).2f} [m2] / {pyo.value(m.fs.gac.bed_volume).2f} [m3]")
+    print(f"GAC Mass filled in bed: {pyo.value(m.fs.gac.bed_mass_gac).2f} [kg]")
+    print(f"EBCT Minimal: {pyo.value(m.fs.gac.min_ebct).2f} [s]")
+
 
 
 
