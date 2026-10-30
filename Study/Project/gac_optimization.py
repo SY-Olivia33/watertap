@@ -37,7 +37,7 @@ def main():
     ## 일단 지금은 cphsdm input으로 돌려보고 나중에 surrogate으로 바꿀 거라서 이후 cphsdm_method="surrogate" 넘겨주기
     initialize(m)
     res = optimize(m)
-    print_results(m, res) ## function for printing results should be added
+    print_results(m, res, cost_contactor_type="gravity") ## function for printing results should be added
                         ## print_results should include res.solver.termination_condition
 
     return m
@@ -218,6 +218,8 @@ def initialize(m, solver=None):
 
 def optimize(m, solver=None):
     ## 지금은 DOF=0인 걸 한 번 더 푸는 것에 불과해서 objective 함수도 없고 걍 별 의미 없음. 나중에 살 붙이기
+    ## reference ; EBCT(600s) < minimum EBCT(2867s) (to satisfy CPHSDM's constant pattern assumption)
+    ## Therefore, constraints that makes optimized EBCT larger than the minimum EBCT should be added (ebct >= min_ebct)
 
     if solver is None:
         solver = get_solver()
@@ -259,21 +261,37 @@ def add_costing(m, cost_contactor_type = "pressure"):
         m.fs.costing.gac_gravity.num_contactors_redundant.fix(1)
 
 
-def print_results(m, res):
+def print_results(m, res, cost_contactor_type):
+
     print(f"termination: {res.solver.termination_condition}")
+
+    print("--- Optimization Results ---")
     print(f"EBCT: {pyo.value(m.fs.gac.ebct):.2f} [s]")
     print(f"Bed Length: {pyo.value(m.fs.gac.bed_length):.2f} [m]")
     print(f"Loading Rate: {pyo.value(m.fs.gac.velocity_sup)*3600:.2f} [m/h]")
     print(f"Bed Diameter/Area/Volume: {pyo.value(m.fs.gac.bed_diameter):.2f} [m] / {pyo.value(m.fs.gac.bed_area):.2f} [m2] / {pyo.value(m.fs.gac.bed_volume):.2f} [m3]")
+    ## 전체 diameter랑 area랑 volume이라서 나중에 n_contactor로 나눠주자
+    if cost_contactor_type == ContactorType.pressure:
+        print(f"Number of contactors: {int(pyo.value(m.fs.costing.gac_pressure.num_contactors_op))}")
+    else:
+        print(f"Number of contactors: {int(pyo.value(m.fs.costing.gac_gravity.num_contactors_op))}")
     print(f"GAC Mass filled in bed: {pyo.value(m.fs.gac.bed_mass_gac):.2f} [kg]")
     print(f"EBCT Minimal: {pyo.value(m.fs.gac.min_ebct):.2f} [s]")
-    ## contactor number도 프린트해줘야 하는데 이거는 contactor type 따라 달라져가지고 어케할지 생각좀...
-    ## 여기서 if문을 넣을지 아니면 따로 변수로 꺼내서 넘겨받고 한줄로만 할지??
-    ## CAPEX, OPEX. LCOW. 얼마나 나왔는지
     ## regen type도 어떤 걸로 했는지 나중에 추가해줘야 함
-    ## 아니 이거 하나하나 다 치기 넘 귀찮은데 report() 쓰면 되지 않나?? 시픔 흠...
-    ## report()에서 안 나오는 거 -> mass adsorbed 이거 안 나와서 따로 프린트해주는 게 좋을지도
 
+    print("--- Performance Results ---")
+    print(f"Bed Volumes Treated: {pyo.value(m.fs.gac.bed_volumes_treated):.0f} [BV]")  ## = bed life expressed in BV
+    print(f"Bed Life: {pyo.value(m.fs.gac.operational_time)/86400:.1f} [days]")
+    print(f"Mass Removed: {pyo.value(m.fs.gac.mass_adsorbed)} [kg]")
+    print(f"GAC Usage Rate: {pyo.value(m.fs.gac.gac_usage_rate)*86400:.1f} [kg/day]")
+
+    print("--- Cost ---")
+    print(f"CAPEX for GAC: {pyo.value(m.fs.gac.costing.capital_cost):,.2f} [$]")
+    print(f"OPEX for GAC: {pyo.value(m.fs.gac.costing.fixed_operating_cost):,.2f} [$/year]")
+    print(f"Total CAPEX: {pyo.value(m.fs.costing.total_capital_cost):,.2f} [$]")
+    print(f"Total OPEX: {pyo.value(m.fs.costing.total_operating_cost):,.2f} [$/year]")
+    print(f"Total Annualized Cost: {pyo.value(m.fs.costing.total_annualized_cost):,.2f} [$/year]")
+    print(f"LCOW: {pyo.value(m.fs.costing.LCOW):,.4f} [$/m3]")
 
 
 if __name__ == "__main__":
