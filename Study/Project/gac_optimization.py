@@ -10,7 +10,6 @@ import pyomo.environ as pyo
 from pyomo.network import Arc
 from idaes.core import FlowsheetBlock, UnitModelCostingBlock
 from idaes.core.util.initialization import propagate_state
-from idaes.core.util.model_statistics import degrees_of_freedom
 from idaes.models.unit_models import Feed, Product
 import idaes.core.util.scaling as iscale
 import math
@@ -36,6 +35,22 @@ def main():
     )
     ## 일단 지금은 cphsdm input으로 돌려보고 나중에 surrogate으로 바꿀 거라서 이후 cphsdm_method="surrogate" 넘겨주기
     initialize(m)
+    cost_params = m.fs.costing.gac_gravity
+    optimal_j = None
+    optimal_lcow = None
+    for j in range (1, 21):
+        cost_params.num_contactors_op.fix(j)
+        try:
+            optimize(m)
+        except (RuntimeError, ValueError):
+            continue
+        lcow = pyo.value(m.fs.costing.LCOW)
+        if optimal_lcow is None or lcow < optimal_lcow:
+            optimal_lcow = lcow
+            optimal_j = j
+    if optimal_j is None:
+        raise RuntimeError("Convergence failed")
+    cost_params.num_contactors_op.fix(optimal_j)
     res = optimize(m)
     print_results(m, res, cost_contactor_type="gravity") ## function for printing results should be added
                         ## print_results should include res.solver.termination_condition
@@ -244,8 +259,6 @@ def optimize(m, solver=None):
 
     ## check model ; units
     assert_units_consistent(m)
-    print(f"Optimizing with {(degrees_of_freedom(m))} DOF")
-
     ## solve
     res = solver.solve(m)
     pyo.assert_optimal_termination(res)
@@ -255,7 +268,7 @@ def optimize(m, solver=None):
 
 def add_costing(m, cost_contactor_type = "pressure", flow_vol_q = 0.043813):
     m.fs.costing = WaterTAPCosting()
-    m.fs.costing.base_currency = pyo.units.USD_2021  ## 년도 어떻게 할지
+    m.fs.costing.base_currency = pyo.units.USD_2021  ## 년도 어떻게 할지??
     m.fs.gac.costing = UnitModelCostingBlock(
         flowsheet_costing_block=m.fs.costing,
         costing_method_arguments={"contactor_type": cost_contactor_type},
@@ -264,9 +277,7 @@ def add_costing(m, cost_contactor_type = "pressure", flow_vol_q = 0.043813):
     ## add flowsheet level blocks
     m.fs.costing.cost_process()  ## cost_process method 호출
     treated_flow = m.fs.product.properties[0].flow_vol  ## product의 flow_vol
-    ## m.fs.costing.add_annual_water_production(treated_flow)  ## treated_flow 이용해 annual water production 계산 근데 그냥 빼도 되지 않나? 그냥 뺄게~
     m.fs.costing.add_LCOW(treated_flow)  ## treated_flow 이용해 LCOW 계산
-    ## Specific Energy Consumption 계산하는 행은 그냥 뺐음
 
     flow_vol_q_mgd = pyo.units.convert_value(flow_vol_q, from_units=pyo.units.m ** 3 / pyo.units.s, to_units=pyo.units.Mgallon / pyo.units.day, )
 
@@ -298,8 +309,7 @@ def print_results(m, res, cost_contactor_type):
     n_red = int(pyo.value(contactor_numbers.num_contactors_redundant))
 
     print(f"Total bed area / Total bed volume: {pyo.value(m.fs.gac.bed_area):.2f} [m2] / {pyo.value(m.fs.gac.bed_volume):.2f} [m3]")
-    ## operating만 고려해줌
-    ## 전체 area랑 volume이라서 나중에 n_contactor로 나눠주자
+    ## operating만 고려
     print(f"Unit bed width / Unit bed area / Unit bed volume: {pyo.value(m.fs.unit_width):.2f} [m] / {pyo.value(m.fs.unit_area):.2f} [m2] / {pyo.value(m.fs.gac.bed_volume)/n_op:.2f} [m3]")
     ## ft로 할지 아니면 그냥 m로 해도 ㄱㅊ을지?? 엑셀이랑 비교할 거 생각하면 ft로 변환하는 게 낫나 싶긴 한데 음
     print(f"Number of total contactors: {n_op + n_red}")
